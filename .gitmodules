@@ -1,0 +1,6 @@
+[submodule "libs/asio"]
+	path = libs/asio
+	url = https://github.com/chriskohlhoff/asio.git
+[submodule "libs/Simple-Web-Server"]
+	path = libs/Simple-Web-Server
+	url = https://github.com/eidheim/Simple-Web-Server.git
