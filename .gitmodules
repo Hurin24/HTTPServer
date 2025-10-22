@@ -4,3 +4,6 @@
 [submodule "libs/Simple-Web-Server"]
 	path = libs/Simple-Web-Server
 	url = https://github.com/eidheim/Simple-Web-Server.git
+[submodule "libs/json"]
+	path = libs/json
+	url = https://github.com/nlohmann/json.git

@@ -1,0 +1,34 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 6289957..fa44eac 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-cmake_minimum_required (VERSION 2.8.8)
++cmake_minimum_required (VERSION 3.10)
+ 
+ project (Simple-Web-Server)
+ 
+@@ -22,11 +22,6 @@ target_link_libraries(simple-web-server INTERFACE ${CMAKE_THREAD_LIBS_INIT})
+ # Remove Boost system, thread, regex components; use Boost::<component> aliases; remove Boost target_include_directories
+ if(USE_STANDALONE_ASIO)
+     target_compile_definitions(simple-web-server INTERFACE USE_STANDALONE_ASIO)
+-    include(CheckIncludeFileCXX)
+-    CHECK_INCLUDE_FILE_CXX(asio.hpp HAVE_ASIO)
+-    if(NOT HAVE_ASIO)
+-        message(FATAL_ERROR "Standalone Asio not found")
+-    endif()
+ else()
+     find_package(Boost 1.53.0 COMPONENTS system thread REQUIRED)
+     target_link_libraries(simple-web-server INTERFACE ${Boost_LIBRARIES})
+@@ -65,9 +60,9 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
+         target_link_libraries(https_examples ${Boost_LIBRARIES})
+         target_include_directories(https_examples PRIVATE ${Boost_INCLUDE_DIR})
+     endif()
+-    
++
+     set(BUILD_TESTING ON)
+-    
++
+     install(FILES server_http.hpp client_http.hpp server_https.hpp client_https.hpp crypto.hpp utility.hpp status_code.hpp DESTINATION include/simple-web-server)
+ endif()
+ 
