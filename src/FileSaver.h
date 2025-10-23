@@ -56,15 +56,15 @@ private:
     //Таблица переходов состояний
     FileSaverState m_transitionTable[QuantityParserState][QuantityTypeLine] =
     {
-        //Boundary           NewLine                    Data                      BoundaryEnd
+        //Boundary               NewLine                 Data                      BoundaryEnd
         { ReadingBoundaryHeader, WaitingRequestHeader,   ReadingRequestHeader,     ReadingBoundaryHeader }, //WaitingRequestHeader
         { ReadingBoundaryHeader, ReadingRequestHeader,   ReadingRequestHeader,     ReadingBoundaryHeader }, //ReadingRequestHeader
         { ReadingBoundaryHeader, WaitingBoundaryHeader,  ReadingBoundaryHeader,    ReadingBoundaryHeader }, //WaitingBoundaryHeader
         { ReadingBoundaryHeader, WaitingData,            ReadingBoundaryHeader,    ReadingBoundaryHeader }, //ReadingBoundaryHeader
         { ReadingBoundaryHeader, WaitingData,            ReadingData,              ReadingBoundaryHeader }, //WaitingData
-        { ReadingBoundaryHeader, ReadingData,            ReadingData,              FinishedRead },         //ReadingData
-        { FinishedRead,         FinishedRead,           FinishedRead,             FinishedRead },         //FinishedRead
-        { ErrorState,           ErrorState,             ErrorState,               ErrorState }            //ErrorState
+        { ReadingBoundaryHeader, ReadingData,            ReadingData,              FinishedRead },          //ReadingData
+        { FinishedRead,          FinishedRead,           FinishedRead,             FinishedRead },          //FinishedRead
+        { ErrorState,            ErrorState,             ErrorState,               ErrorState }             //ErrorState
     };
 
     bool readLineFromBuffer(std::istream& stream, std::string& line);
