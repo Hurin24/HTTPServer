@@ -38,13 +38,12 @@ else()
   endif()
 endif()
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/asio/asio/include)
 add_subdirectory(libs/Simple-Web-Server)
 
 #json
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs/json/include)
 
 
-add_executable(HTTPServer src/main.cpp)
+add_executable(HTTPServer src/main.cpp src/FileSaver.cpp)
 target_include_directories(HTTPServer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/libs/Simple-Web-Server)
 target_link_libraries(HTTPServer PRIVATE simple-web-server)
