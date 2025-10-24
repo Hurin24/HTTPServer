@@ -32,7 +32,7 @@ public:
         ReadingData,
         WasReadBoundaryEnd,
         FinishedRead,
-        Error,
+        ErrorState,
         QuantityParserState     //Количество состояний
     };
 
@@ -73,18 +73,18 @@ private:
     //Таблица переходов состояний
     FileSaverState m_transitionTable[QuantityParserState][QuantityTypeLine] =
     {
-          //Boundary       ContentDisposition         NewLine         Data            BoundaryEnd
-        { Error,           Error,                     Error,          Error,          Error              }, //WaitingRequestHeader
-        { WasReadBoundary, Error,                     Error,          Error,          Error              }, //WaitingBoundary
-        { Error,           Error,                     Error,          Error,          Error              }, //WasReadBoundary
-        { Error,           WasReadContentDisposition, Error,          Error,          Error              }, //WaitingContentDisposition
-        { Error,           Error,                     Error,          Error,          Error              }, //WasReadContentDisposition
-        { Error,           Error,                     WasReadNewLine, WaitingNewLine, Error              }, //WaitingNewLine
-        { Error,           Error,                     Error,          Error,          Error              }, //WasReadNewLine
+        //Boundary         ContentDisposition         NewLine         Data            BoundaryEnd
+        { ErrorState,      ErrorState,                ErrorState,     ErrorState,     ErrorState         }, //WaitingRequestHeader
+        { WasReadBoundary, ErrorState,                ErrorState,     ErrorState,     ErrorState         }, //WaitingBoundary
+        { ErrorState,      ErrorState,                ErrorState,     ErrorState,     ErrorState         }, //WasReadBoundary
+        { ErrorState,      WasReadContentDisposition, ErrorState,     ErrorState,     ErrorState         }, //WaitingContentDisposition
+        { ErrorState,      ErrorState,                ErrorState,     ErrorState,     ErrorState         }, //WasReadContentDisposition
+        { ErrorState,      ErrorState,                WasReadNewLine, WaitingNewLine, ErrorState         }, //WaitingNewLine
+        { ErrorState,      ErrorState,                ErrorState,     ErrorState,     ErrorState         }, //WasReadNewLine
         { WasReadBoundary, ReadingData,               ReadingData,    ReadingData,    WasReadBoundaryEnd }, //ReadingData
-        { Error,           Error,                     Error,          Error,          Error              }, //WasReadBoundaryEnd
-        { Error,           Error,                     Error,          Error,          Error              }, //FinishedRead
-        { Error,           Error,                     Error,          Error,          Error              }  //Error
+        { ErrorState,      ErrorState,                ErrorState,     ErrorState,     ErrorState         }, //WasReadBoundaryEnd
+        { ErrorState,      ErrorState,                ErrorState,     ErrorState,     ErrorState         }, //FinishedRead
+        { ErrorState,      ErrorState,                ErrorState,     ErrorState,     ErrorState         }  //ErrorState
     };
 
     bool waitingRequestHeader(const std::string& line);

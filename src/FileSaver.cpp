@@ -60,7 +60,7 @@ void FileSaver::setRequestHeader(const CaseInsensitiveMultimap& headers)
     }
 
     //Если не нашли boundary, переходим в состояние ошибки
-    setState(Error);
+    setState(ErrorState);
     lastError = "Content-Type with boundary not found in request headers";
 }
 
@@ -127,7 +127,7 @@ json FileSaver::processStream(std::istream& stream)
         }
 
         // Если достигли конечного состояния, завершаем обработку
-        if(m_state == FinishedRead || m_state == Error)
+        if(m_state == FinishedRead || m_state == ErrorState)
         {
             break;
         }
@@ -340,7 +340,7 @@ bool FileSaver::analyzeLine(const std::string& line)
         {
             return finishedRead(line);
         }
-        case Error:
+        case ErrorState:
         {
             return errorState(line);
         }
