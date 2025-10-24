@@ -292,7 +292,7 @@ bool FileSaver::finishedRead(const std::string& line)
 
 bool FileSaver::errorState(const std::string& line)
 {
-    //В состоянии ошибки просто возвращаем false
+    lastError = "Impossible state";
     return false;
 }
 
