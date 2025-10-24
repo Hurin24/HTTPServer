@@ -8,6 +8,70 @@ using namespace std;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 using json = nlohmann::json;
 
+
+bool isValidIP(const std::string& ip)
+{
+    //Регулярное выражение для IPv4
+    std::regex ipRegex("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}"
+                        "(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
+
+    return std::regex_match(ip, ipRegex);
+}
+
+bool isValidPort(const std::string& portStr)
+{
+    //Проверка что строка состоит только из цифр
+    if(portStr.empty() || !std::all_of(portStr.begin(), portStr.end(), ::isdigit))
+    {
+        return false;
+    }
+
+    try
+    {
+        int port = std::stoi(portStr);
+        return port > 0 && port <= 65535;
+    }
+    catch(const std::exception&)
+    {
+        return false;
+    }
+}
+
+bool isUserPort(const std::string& portStr)
+{
+    if(!isValidPort(portStr))
+    {
+        return false;
+    }
+
+    int port = std::stoi(portStr);
+    return port >= 1024 && port <= 65535;
+}
+
+void printUsage(const char* programName)
+{
+    std::cout << "Использование: " << programName << " <IP-адрес> <порт>" << std::endl;
+    std::cout << "Пример: " << programName << " 192.168.1.1 8080" << std::endl;
+    std::cout << "IP-адрес должен быть валидным IPv4 адресом" << std::endl;
+    std::cout << "Порт должен быть в диапазоне 1-65535" << std::endl;
+    std::cout << "Порт должен быть ≥ 1024" << std::endl;
+}
+
+bool checkRootPrivileges()
+{
+    uid_t uid = getuid();
+    uid_t euid = geteuid();
+
+    if(uid == 0 || euid == 0)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
 bool createUploadsDirectory()
 {
     int result;
@@ -17,30 +81,68 @@ bool createUploadsDirectory()
     result = system("mkdir -p uploads");
 #endif
 
-    if (result == 0)
+    if(result == 0)
     {
-        std::cout << "Uploads directory created successfully" << std::endl;
         return true;
     }
     else
     {
-        std::cout << "Uploads directory already exists or cannot be created" << std::endl;
         return false;
     }
 }
 
-
-int main()
+int main(int argc, char* argv[])
 {
+    //Проверка количества аргументов
+    if(argc != 3)
+    {
+        std::cerr << "Ошибка: неверное количество аргументов!" << std::endl;
+        printUsage(argv[0]);
+        return 1;
+    }
+
+    std::string ip = argv[1];
+    std::string port = argv[2];
+
+    //Проверка IP-адреса
+    if(!isValidIP(ip))
+    {
+        std::cerr << "Ошибка: невалидный IP-адрес: " << ip << std::endl;
+        std::cerr << "IP-адрес должен быть в формате XXX.XXX.XXX.XXX" << std::endl;
+        return 1;
+    }
+
+    //Проверка порта
+    if(!isValidPort(port))
+    {
+        std::cerr << "Ошибка: невалидный порт: " << port << std::endl;
+        std::cerr << "Порт должен быть числом в диапазоне 1024 - 65535" << std::endl;
+        return 1;
+    }
+
+    //Проверка диапазона порта
+    if(!isUserPort(port))
+    {
+        std::cerr << "Ошибка: невалидный порт: " << port << std::endl;
+        std::cerr << "Порт должен быть числом в диапазоне 1024 - 65535" << std::endl;
+        return 1;
+    }
+
+    if(!checkRootPrivileges())
+    {
+        std::cerr << "Ошибка: программа должна быть запущена с правами root!" << std::endl;
+        return 1;
+    }
+
     if(!createUploadsDirectory())
     {
+        std::cerr << "Не удалось создать директорию uploads" << std::endl;
         return 1;
     }
 
     HttpServer server;
-    server.config.port = 1616;
-    server.config.address = "0.0.0.0";
-
+    server.config.address = ip;
+    server.config.port = std::stoi(port);
 
 
     // GET-example for the path /info
@@ -78,11 +180,13 @@ int main()
                                            };
 
     thread server_thread(
-        [&server]()
-        {
-            // Start server
-            server.start();
-        });
+    [&server]()
+    {
+        std::cout << "Запущен сервер с IP = " << server.config.address << " и портом = " << server.config.port << std::endl;
+
+        //Запус сервера
+        server.start();
+    });
 
     server_thread.join();
     return 0;
