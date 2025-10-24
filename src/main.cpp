@@ -184,7 +184,7 @@ int main(int argc, char* argv[])
     {
         std::cout << "Запущен сервер с IP = " << server.config.address << " и портом = " << server.config.port << std::endl;
 
-        //Запус сервера
+        //Запуск сервера
         server.start();
     });
 
