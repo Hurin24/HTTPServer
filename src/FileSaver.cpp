@@ -82,25 +82,28 @@ json FileSaver::processStream(std::istream& stream)
                 m_file.close();
 
                 json descriptionFile = {
-                    {"filename", m_filename},
-                    {"size", m_fileSize}
-                };
+                                           {"filename", m_filename},
+                                           {"size", m_fileSize}
+                                       };
+
                 addFileToDescriptionUploadedFiles(descriptionFile);
             }
 
             if(m_state != FinishedRead)
             {
                 json result = {
-                    {"status", "error"},
-                    {"description", "The file was finished read in unexpected state: " + std::to_string(m_state)}
-                };
+                                  {"status", "error"},
+                                  {"description", "The file was finished read in unexpected state: " + std::to_string(m_state)}
+                              };
+
                 return result;
             }
 
             json result = {
-                {"status", "success"},
-                {"uploadedFiles", descriptionUploadedFiles}
-            };
+                              {"status", "success"},
+                              {"uploadedFiles", descriptionUploadedFiles}
+                          };
+
             return result;
         }
 
@@ -116,9 +119,9 @@ json FileSaver::processStream(std::istream& stream)
         {
             //Если одно из состояний вернуло false, значит произошла ошибка
             json result = {
-                {"status", "error"},
-                {"description", lastError}
-            };
+                              {"status", "error"},
+                              {"description", lastError}
+                          };
 
             return result;
         }
@@ -133,17 +136,19 @@ json FileSaver::processStream(std::istream& stream)
     if(m_state == FinishedRead)
     {
         json result = {
-            {"status", "success"},
-            {"uploadedFiles", descriptionUploadedFiles}
-        };
+                          {"status", "success"},
+                          {"uploadedFiles", descriptionUploadedFiles}
+                      };
+
         return result;
     }
     else
     {
         json result = {
-            {"status", "error"},
-            {"description", lastError}
-        };
+                          {"status", "error"},
+                          {"description", lastError}
+                      };
+
         return result;
     }
 }
@@ -166,11 +171,11 @@ bool FileSaver::waitingRequestHeader(const std::string& line)
 
 bool FileSaver::waitingBoundary(const std::string& line)
 {
-    // В этом состоянии мы ожидаем boundary, но сама обработка будет в wasReadedBoundary
+    //В этом состоянии мы ожидаем boundary, но сама обработка будет в wasReadBoundary
     return true;
 }
 
-bool FileSaver::wasReadedBoundary(const std::string& line)
+bool FileSaver::wasReadBoundary(const std::string& line)
 {
     //Завершаем текущий файл
     if(m_file.is_open())
@@ -178,9 +183,10 @@ bool FileSaver::wasReadedBoundary(const std::string& line)
         m_file.close();
 
         json descriptionFile = {
-            {"filename", m_filename},
-            {"size", m_fileSize}
-        };
+                                   {"filename", m_filename},
+                                   {"size", m_fileSize}
+                               };
+
         addFileToDescriptionUploadedFiles(descriptionFile);
 
         //Сбрасываем для следующего файла
@@ -195,29 +201,29 @@ bool FileSaver::wasReadedBoundary(const std::string& line)
 
 bool FileSaver::waitingContentDisposition(const std::string& line)
 {
-    // В этом состоянии мы ожидаем Content-Disposition, но обработка будет в wasReadedContentDisposition
+    //В этом состоянии мы ожидаем Content-Disposition, но обработка будет в wasReadContentDisposition
     return true;
 }
 
-bool FileSaver::wasReadedContentDisposition(const std::string& line)
+bool FileSaver::wasReadContentDisposition(const std::string& line)
 {
-    // Извлекаем имя файла из Content-Disposition
+    //Извлекаем имя файла из Content-Disposition
     m_filename = extractFilenameFromContentDisposition(line);
 
-    // После чтения Content-Disposition переходим к ожиданию новой строки
+    //После чтения Content-Disposition переходим к ожиданию новой строки
     setState(WaitingNewLine);
     return true;
 }
 
 bool FileSaver::waitingNewLine(const std::string& line)
 {
-    // В этом состоянии мы ожидаем новую строку, но обработка будет в wasReadedNewLine
+    //В этом состоянии мы ожидаем новую строку, но обработка будет в wasReadNewLine
     return true;
 }
 
-bool FileSaver::wasReadedNewLine(const std::string& line)
+bool FileSaver::wasReadNewLine(const std::string& line)
 {
-    // После чтения новой строки переходим к чтению данных
+    //После чтения новой строки переходим к чтению данных
     setState(ReadingData);
     return true;
 }
@@ -226,9 +232,9 @@ bool FileSaver::readingData(const std::string& line)
 {
     TypeLine lineType = getLineType(line);
 
-    // Если это данные, записываем их в файл
+    //Если это данные, записываем их в файл
 
-    // Открываем файл при первой записи данных
+    //Открываем файл при первой записи данных
     if(!m_file.is_open())
     {
         if(m_filename.empty())
@@ -242,10 +248,11 @@ bool FileSaver::readingData(const std::string& line)
             lastError = "Cannot open file: uploads/" + m_filename;
             return false;
         }
+
         m_fileSize = 0;
     }
 
-    // Записываем данные с переводом строки
+    //Записываем данные с переводом строки
     m_file << line;
     m_fileSize += line.size();
 
@@ -254,37 +261,38 @@ bool FileSaver::readingData(const std::string& line)
 
 bool FileSaver::wasReadBoundaryEnd(const std::string& line)
 {
-    // Завершаем текущий файл
+    //Завершаем текущий файл
     if(m_file.is_open())
     {
         m_file.close();
 
         json descriptionFile = {
-            {"filename", m_filename},
-            {"size", m_fileSize}
-        };
+                                   {"filename", m_filename},
+                                   {"size", m_fileSize}
+                               };
+
         addFileToDescriptionUploadedFiles(descriptionFile);
 
-        // Сбрасываем для следующего файла
+        //Сбрасываем для следующего файла
         m_filename.clear();
         m_fileSize = 0;
     }
 
-    // Переходим в конечное состояние
+    //Переходим в конечное состояние
     setState(FinishedRead);
     return true;
 }
 
 bool FileSaver::finishedRead(const std::string& line)
 {
-    // В конечном состоянии не ожидаем больше данных
+    //В конечном состоянии не ожидаем больше данных
     lastError = "Extra data after finishing reading";
     return false;
 }
 
 bool FileSaver::errorState(const std::string& line)
 {
-    // В состоянии ошибки просто возвращаем false
+    //В состоянии ошибки просто возвращаем false
     return false;
 }
 
@@ -293,27 +301,49 @@ bool FileSaver::analyzeLine(const std::string& line)
     switch(m_state)
     {
         case WaitingRequestHeader:
+        {
             return waitingRequestHeader(line);
+        }
         case WaitingBoundary:
+        {
             return waitingBoundary(line);
-        case WasReadedBoundary:
-            return wasReadedBoundary(line);
+        }
+        case WasReadBoundary:
+        {
+            return wasReadBoundary(line);
+        }
         case WaitingContentDisposition:
+        {
             return waitingContentDisposition(line);
-        case WasReadedContentDisposition:
-            return wasReadedContentDisposition(line);
+        }
+        case WasReadContentDisposition:
+        {
+            return wasReadContentDisposition(line);
+        }
         case WaitingNewLine:
+        {
             return waitingNewLine(line);
-        case WasReadedNewLine:
-            return wasReadedNewLine(line);
+        }
+        case WasReadNewLine:
+        {
+            return wasReadNewLine(line);
+        }
         case ReadingData:
+        {
             return readingData(line);
+        }
         case WasReadBoundaryEnd:
+        {
             return wasReadBoundaryEnd(line);
+        }
         case FinishedRead:
+        {
             return finishedRead(line);
+        }
         case Error:
+        {
             return errorState(line);
+        }
         default:
             lastError = "Unknown state: " + std::to_string(m_state);
             return false;

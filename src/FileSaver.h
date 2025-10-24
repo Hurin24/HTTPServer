@@ -24,11 +24,11 @@ public:
     {
         WaitingRequestHeader,
         WaitingBoundary,
-        WasReadedBoundary,
+        WasReadBoundary,
         WaitingContentDisposition,
-        WasReadedContentDisposition,
+        WasReadContentDisposition,
         WaitingNewLine,
-        WasReadedNewLine,
+        WasReadNewLine,
         ReadingData,
         WasReadBoundaryEnd,
         FinishedRead,
@@ -73,27 +73,27 @@ private:
     //Таблица переходов состояний
     FileSaverState m_transitionTable[QuantityParserState][QuantityTypeLine] =
     {
-          //Boundary                 ContentDisposition           NewLine               Data                  BoundaryEnd
-        { Error,                     Error,                       Error,                Error,                Error              }, //WaitingRequestHeader
-        { WasReadedBoundary,         Error,                       Error,                Error,                Error              }, //WaitingBoundary
-        { Error,                     Error,                       Error,                Error,                Error              }, //WasReadedBoundary
-        { Error,                     WasReadedContentDisposition, Error,                Error,                Error              }, //WaitingContentDisposition
-        { Error,                     Error,                       Error,                Error,                Error              }, //WasReadedContentDisposition
-        { Error,                     Error,                       WasReadedNewLine,     WaitingNewLine,       Error              }, //WaitingNewLine
-        { Error,                     Error,                       Error,                Error,                Error              }, //WasReadedNewLine
-        { WasReadedBoundary,         ReadingData,                 ReadingData,          ReadingData,          WasReadBoundaryEnd }, //ReadingData
-        { Error,                     Error,                       Error,                Error,                Error              }, //WasReadBoundaryEnd
-        { Error,                     Error,                       Error,                Error,                Error              }, //FinishedRead
-        { Error,                     Error,                       Error,                Error,                Error              }  //Error
+          //Boundary       ContentDisposition         NewLine         Data            BoundaryEnd
+        { Error,           Error,                     Error,          Error,          Error              }, //WaitingRequestHeader
+        { WasReadBoundary, Error,                     Error,          Error,          Error              }, //WaitingBoundary
+        { Error,           Error,                     Error,          Error,          Error              }, //WasReadBoundary
+        { Error,           WasReadContentDisposition, Error,          Error,          Error              }, //WaitingContentDisposition
+        { Error,           Error,                     Error,          Error,          Error              }, //WasReadContentDisposition
+        { Error,           Error,                     WasReadNewLine, WaitingNewLine, Error              }, //WaitingNewLine
+        { Error,           Error,                     Error,          Error,          Error              }, //WasReadNewLine
+        { WasReadBoundary, ReadingData,               ReadingData,    ReadingData,    WasReadBoundaryEnd }, //ReadingData
+        { Error,           Error,                     Error,          Error,          Error              }, //WasReadBoundaryEnd
+        { Error,           Error,                     Error,          Error,          Error              }, //FinishedRead
+        { Error,           Error,                     Error,          Error,          Error              }  //Error
     };
 
     bool waitingRequestHeader(const std::string& line);
     bool waitingBoundary(const std::string& line);
-    bool wasReadedBoundary(const std::string& line);
+    bool wasReadBoundary(const std::string& line);
     bool waitingContentDisposition(const std::string& line);
-    bool wasReadedContentDisposition(const std::string& line);
+    bool wasReadContentDisposition(const std::string& line);
     bool waitingNewLine(const std::string& line);
-    bool wasReadedNewLine(const std::string& line);
+    bool wasReadNewLine(const std::string& line);
     bool readingData(const std::string& line);
     bool wasReadBoundaryEnd(const std::string& line);
     bool finishedRead(const std::string& line);
