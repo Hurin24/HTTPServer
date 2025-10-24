@@ -63,48 +63,18 @@ int main()
 
     server.resource["^/upload$"]["POST"] = [](auto response, auto request)
                                            {
-                                               try
-                                               {
-                                                   FileSaver fileSaver;
 
-                                                    for(auto& value : request->header)
-                                                    {
-                                                         std::cout << value.first << ": " << value.second << std::endl;
-                                                         std::cout << "----------" << std::endl;
-                                                    }
+                                                   FileSaver fileSaver;
 
                                                    fileSaver.setRequestHeader(request->header);
                                                    json result = fileSaver.processStream(request->content);
 
-
-
                                                    std::string response_content = result.dump();
-
 
                                                    *response << "HTTP/1.1 200 OK\r\n"
                                                            << "Content-Type: application/json\r\n"
                                                            << "Content-Length: " << response_content.length() << "\r\n"
                                                            << "\r\n" << response_content;
-
-
-                                                   json error = {{"error", "err"}};
-                                                   std::string content = error.dump();
-                                                   *response << "HTTP/1.1 500 Internal Server Error\r\n"
-                                                           << "Content-Type: application/json\r\n"
-                                                           << "Content-Length: " << content.length() << "\r\n"
-                                                           << "\r\n" << content;
-
-                                               }
-                                               catch(const std::exception& e)
-                                               {
-                                                   std::cerr << "Upload error: " << e.what() << std::endl;
-                                                   json error = {{"error", e.what()}};
-                                                   std::string content = error.dump();
-                                                   *response << "HTTP/1.1 500 Internal Server Error\r\n"
-                                                           << "Content-Type: application/json\r\n"
-                                                           << "Content-Length: " << content.length() << "\r\n"
-                                                           << "\r\n" << content;
-                                               }
                                            };
 
     thread server_thread(
