@@ -22,6 +22,7 @@ void FileSaver::setRequestHeader(const CaseInsensitiveMultimap& headers)
 
     //Ищем заголовок Content-Type с boundary=
     auto it = headers.find("Content-Type");
+
     if(it != headers.end())
     {
         const std::string& contentType = it->second;
@@ -41,7 +42,7 @@ void FileSaver::setRequestHeader(const CaseInsensitiveMultimap& headers)
                 //Убираем возможные кавычки вокруг boundary
                 if(!boundary.empty() && (boundary.front() == '"' || boundary.front() == '\''))
                 {
-                    boundary.erase(0,1);
+                    boundary.erase(0, 1);
                 }
 
                 if(!boundary.empty() && (boundary.back() == '"' || boundary.back() == '\''))
@@ -107,10 +108,12 @@ json FileSaver::processStream(std::istream& stream)
             return result;
         }
 
+
         //Определяем тип текущей строки
         TypeLine lineType = getLineType(line);
 
         //Выполняем переход состояния
+        FileSaverState oldState = m_state;
         FileSaverState newState = m_transitionTable[m_state][lineType];
         setState(newState);
 
@@ -163,19 +166,27 @@ void FileSaver::setState(FileSaverState newState)
     m_state = newState;
 }
 
-bool FileSaver::waitingRequestHeader(const std::string& line)
+bool FileSaver::waitingRequestHeader(std::string& line)
 {
+    //Если всё делать правильно то никогда не должны попасть в эту функцию
     lastError = "The request header was not read properly";
     return false;
 }
 
-bool FileSaver::waitingBoundary(const std::string& line)
+bool FileSaver::wasReadRequestHeader()
+{
+    //Функция для перехода в состояние WaitingBoundary
+    setState(WaitingBoundary);
+    return true;
+}
+
+bool FileSaver::waitingBoundary(std::string& line)
 {
     //В этом состоянии мы ожидаем boundary, но сама обработка будет в wasReadBoundary
     return true;
 }
 
-bool FileSaver::wasReadBoundary(const std::string& line)
+bool FileSaver::wasReadBoundary(std::string& line)
 {
     //Завершаем текущий файл
     if(m_file.is_open())
@@ -190,6 +201,7 @@ bool FileSaver::wasReadBoundary(const std::string& line)
         addFileToDescriptionUploadedFiles(descriptionFile);
 
         //Сбрасываем для следующего файла
+        m_newline.clear();
         m_filename.clear();
         m_fileSize = 0;
     }
@@ -199,42 +211,18 @@ bool FileSaver::wasReadBoundary(const std::string& line)
     return true;
 }
 
-bool FileSaver::waitingContentDisposition(const std::string& line)
+bool FileSaver::waitingContentDisposition(std::string& line)
 {
     //В этом состоянии мы ожидаем Content-Disposition, но обработка будет в wasReadContentDisposition
     return true;
 }
 
-bool FileSaver::wasReadContentDisposition(const std::string& line)
+bool FileSaver::wasReadContentDisposition(std::string& line)
 {
     //Извлекаем имя файла из Content-Disposition
     m_filename = extractFilenameFromContentDisposition(line);
 
-    //После чтения Content-Disposition переходим к ожиданию новой строки
-    setState(WaitingNewLine);
-    return true;
-}
-
-bool FileSaver::waitingNewLine(const std::string& line)
-{
-    //В этом состоянии мы ожидаем новую строку, но обработка будет в wasReadNewLine
-    return true;
-}
-
-bool FileSaver::wasReadNewLine(const std::string& line)
-{
-    //После чтения новой строки переходим к чтению данных
-    setState(ReadingData);
-    return true;
-}
-
-bool FileSaver::readingData(const std::string& line)
-{
-    TypeLine lineType = getLineType(line);
-
-    //Если это данные, записываем их в файл
-
-    //Открываем файл при первой записи данных
+    //Открываем файл
     if(!m_file.is_open())
     {
         if(m_filename.empty())
@@ -252,14 +240,73 @@ bool FileSaver::readingData(const std::string& line)
         m_fileSize = 0;
     }
 
-    //Записываем данные с переводом строки
-    m_file << line;
-    m_fileSize += line.size();
-
+    //После чтения Content-Disposition переходим к ожиданию новой строки
+    setState(WaitingNewLine);
     return true;
 }
 
-bool FileSaver::wasReadBoundaryEnd(const std::string& line)
+bool FileSaver::waitingNewLine(std::string& line)
+{
+    //В этом состоянии мы ожидаем новую строку, но обработка будет в wasReadNewLine
+    return true;
+}
+
+bool FileSaver::wasReadNewLine(std::string& line)
+{
+    //После чтения новой строки переходим к чтению данных
+    setState(WaitingData);
+    return true;
+}
+
+bool FileSaver::waitingData(std::string& line)
+{
+    return false;
+}
+
+bool FileSaver::wasReadData(std::string& line)
+{
+    if(!m_newline.empty())
+    {
+        bool result = writeLineToFile(m_newline);
+
+        m_newline.clear();
+
+        if(!result)
+        {
+            return result;
+        }
+    }
+
+
+    if(line.size() >= 2)
+    {
+        if(line[line.size() - 2] == '\r' && line[line.size() - 1] == '\n')
+        {
+            line.resize(line.size() - 2);
+
+            m_newline = "\r\n";
+        }
+    }
+
+
+    bool result = writeLineToFile(line);
+
+    if(!result)
+    {
+        return result;
+    }
+
+
+    setState(WaitingBoundaryEnd);
+    return true;
+}
+
+bool FileSaver::waitingBoundaryEnd(std::string& line)
+{
+    return true;
+}
+
+bool FileSaver::wasReadBoundaryEnd(std::string& line)
 {
     //Завершаем текущий файл
     if(m_file.is_open())
@@ -283,26 +330,30 @@ bool FileSaver::wasReadBoundaryEnd(const std::string& line)
     return true;
 }
 
-bool FileSaver::finishedRead(const std::string& line)
+bool FileSaver::finishedRead(std::string& line)
 {
     //В конечном состоянии не ожидаем больше данных
     lastError = "Extra data after finishing reading";
     return false;
 }
 
-bool FileSaver::errorState(const std::string& line)
+bool FileSaver::errorState(std::string& line)
 {
     lastError = "Impossible state";
     return false;
 }
 
-bool FileSaver::analyzeLine(const std::string& line)
+bool FileSaver::analyzeLine(std::string& line)
 {
     switch(m_state)
     {
         case WaitingRequestHeader:
         {
             return waitingRequestHeader(line);
+        }
+        case WasReadRequestHeader:
+        {
+            return wasReadRequestHeader();
         }
         case WaitingBoundary:
         {
@@ -328,9 +379,17 @@ bool FileSaver::analyzeLine(const std::string& line)
         {
             return wasReadNewLine(line);
         }
-        case ReadingData:
+        case WaitingData:
         {
-            return readingData(line);
+            return waitingData(line);
+        }
+        case WasReadData:
+        {
+            return wasReadData(line);
+        }
+        case WaitingBoundaryEnd:
+        {
+            return waitingBoundaryEnd(line);
         }
         case WasReadBoundaryEnd:
         {
@@ -356,23 +415,42 @@ bool FileSaver::readLineFromBuffer(std::istream& stream, std::string& line)
 
     if(std::getline(stream, line))
     {
+        //Добавляем символ новой строки, так как он был удалён при getline
         line.push_back('\n');
+
         return true;
     }
 
     return false;
 }
 
-FileSaver::TypeLine FileSaver::getLineType(const std::string& line)
+bool FileSaver::writeLineToFile(std::string& line)
 {
-    //Быстрая проверка на NewLine (пустая строка)
-    if(line.empty() || line == "\r\n" || line == "\n")
+    if(!m_file.is_open())
     {
-        return NewLine;
+        lastError = "File uploads/" + m_filename + " not open";
+        return false;
     }
 
+    //Записываем данные с переводом строки
+    m_file << line;
+    m_fileSize += line.size();
 
-    //Быстрая проверка на Boundary (начинается с "-")
+    return true;
+}
+
+FileSaver::TypeLine FileSaver::getLineType(std::string& line)
+{
+    //Проверка на NewLine (пустая строка)
+    if(line.size() == 2)
+    {
+        if(line == "\r\n")
+        {
+            return NewLine;
+        }
+    }
+
+    //Проверка на Boundary (начинается с "-")
     if(line[0] == '-')
     {
         if(line.size() >= m_boundaryExtended.size())
@@ -403,7 +481,7 @@ FileSaver::TypeLine FileSaver::getLineType(const std::string& line)
     return Data;
 }
 
-std::string FileSaver::extractFilenameFromContentDisposition(const std::string& line)
+std::string FileSaver::extractFilenameFromContentDisposition(std::string& line)
 {
     std::string tempFilename;
 

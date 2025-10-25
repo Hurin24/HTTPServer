@@ -23,13 +23,16 @@ public:
     enum FileSaverState : uint8_t
     {
         WaitingRequestHeader,
+        WasReadRequestHeader,
         WaitingBoundary,
         WasReadBoundary,
         WaitingContentDisposition,
         WasReadContentDisposition,
         WaitingNewLine,
         WasReadNewLine,
-        ReadingData,
+        WaitingData,
+        WasReadData,
+        WaitingBoundaryEnd,
         WasReadBoundaryEnd,
         FinishedRead,
         ErrorState,
@@ -59,6 +62,7 @@ private:
     std::string m_boundary;
     std::string m_boundaryExtended;
     std::string m_boundaryEnd;
+    std::string m_newline;
 
     size_t m_fileSize;
     CaseInsensitiveMultimap m_requestHeadersMap;
@@ -73,40 +77,48 @@ private:
     //Таблица переходов состояний
     FileSaverState m_transitionTable[QuantityParserState][QuantityTypeLine] =
     {
-        //Boundary         ContentDisposition         NewLine         Data            BoundaryEnd
-        { ErrorState,      ErrorState,                ErrorState,     ErrorState,     ErrorState         }, //WaitingRequestHeader
-        { WasReadBoundary, ErrorState,                ErrorState,     ErrorState,     ErrorState         }, //WaitingBoundary
-        { ErrorState,      ErrorState,                ErrorState,     ErrorState,     ErrorState         }, //WasReadBoundary
-        { ErrorState,      WasReadContentDisposition, ErrorState,     ErrorState,     ErrorState         }, //WaitingContentDisposition
-        { ErrorState,      ErrorState,                ErrorState,     ErrorState,     ErrorState         }, //WasReadContentDisposition
-        { ErrorState,      ErrorState,                WasReadNewLine, WaitingNewLine, ErrorState         }, //WaitingNewLine
-        { ErrorState,      ErrorState,                ErrorState,     ErrorState,     ErrorState         }, //WasReadNewLine
-        { WasReadBoundary, ReadingData,               ReadingData,    ReadingData,    WasReadBoundaryEnd }, //ReadingData
-        { ErrorState,      ErrorState,                ErrorState,     ErrorState,     ErrorState         }, //WasReadBoundaryEnd
-        { ErrorState,      ErrorState,                ErrorState,     ErrorState,     ErrorState         }, //FinishedRead
-        { ErrorState,      ErrorState,                ErrorState,     ErrorState,     ErrorState         }  //ErrorState
+        //Boundary         ContentDisposition         NewLine                      Data            BoundaryEnd
+        { ErrorState,      ErrorState,                ErrorState,                  ErrorState,     ErrorState         }, //WaitingRequestHeader
+        { ErrorState,      ErrorState,                ErrorState,                  ErrorState,     ErrorState         }, //WasReadRequestHeader
+        { WasReadBoundary, ErrorState,                ErrorState,                  ErrorState,     ErrorState         }, //WaitingBoundary
+        { ErrorState,      ErrorState,                ErrorState,                  ErrorState,     ErrorState         }, //WasReadBoundary
+        { ErrorState,      WasReadContentDisposition, ErrorState,                  ErrorState,     ErrorState         }, //WaitingContentDisposition
+        { ErrorState,      ErrorState,                ErrorState,                  ErrorState,     ErrorState         }, //WasReadContentDisposition
+        { ErrorState,      ErrorState,                WasReadNewLine,              WaitingNewLine, ErrorState         }, //WaitingNewLine
+        { ErrorState,      ErrorState,                ErrorState,                  ErrorState,     ErrorState         }, //WasReadNewLine
+        { WasReadBoundary, WasReadData,               WasReadData,                 WasReadData,    WasReadBoundaryEnd }, //WaitingData
+        { ErrorState,      ErrorState,                ErrorState,                  ErrorState,     ErrorState         }, //WasReadData
+        { WasReadBoundary, WasReadData,               WasReadData,                 WasReadData,    WasReadBoundaryEnd }, //WaitingBoundaryEnd
+        { ErrorState,      ErrorState,                ErrorState,                  ErrorState,     ErrorState         }, //WasReadBoundaryEnd
+        { ErrorState,      ErrorState,                ErrorState,                  ErrorState,     ErrorState         }, //FinishedRead
+        { ErrorState,      ErrorState,                ErrorState,                  ErrorState,     ErrorState         }  //ErrorState
     };
 
-    bool waitingRequestHeader(const std::string& line);
-    bool waitingBoundary(const std::string& line);
-    bool wasReadBoundary(const std::string& line);
-    bool waitingContentDisposition(const std::string& line);
-    bool wasReadContentDisposition(const std::string& line);
-    bool waitingNewLine(const std::string& line);
-    bool wasReadNewLine(const std::string& line);
-    bool readingData(const std::string& line);
-    bool wasReadBoundaryEnd(const std::string& line);
-    bool finishedRead(const std::string& line);
-    bool errorState(const std::string& line);
+    bool waitingRequestHeader(std::string& line);
+    bool wasReadRequestHeader();
+    bool waitingBoundary(std::string& line);
+    bool wasReadBoundary(std::string& line);
+    bool waitingContentDisposition(std::string& line);
+    bool wasReadContentDisposition(std::string& line);
+    bool waitingNewLine(std::string& line);
+    bool wasReadNewLine(std::string& line);
+    bool waitingData(std::string& line);
+    bool wasReadData(std::string& line);
+    bool waitingBoundaryEnd(std::string& line);
+    bool wasReadBoundaryEnd(std::string& line);
+    bool finishedRead(std::string& line);
+    bool errorState(std::string& line);
 
-    bool analyzeLine(const std::string& line);
+    bool analyzeLine(std::string& line);
 
     bool readLineFromBuffer(std::istream& stream, std::string& line);
 
-    TypeLine getLineType(const std::string& line);
+    bool writeLineToFile(std::string& line);
 
-    std::string extractNameFromContentType(const std::string& line);
-    std::string extractFilenameFromContentDisposition(const std::string& line);
+    TypeLine getLineType(std::string& line);
+
+    std::string extractNameFromContentType(std::string& line);
+    std::string extractFilenameFromContentDisposition(std::string& line);
 };
 
 #endif //FILE_SAVER_H
