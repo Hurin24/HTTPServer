@@ -12,6 +12,8 @@
 
 #include "utility.hpp"
 
+#include "spdlog/logger.h"
+
 
 using json = nlohmann::json;
 using namespace SimpleWeb;
@@ -55,6 +57,8 @@ public:
     void setRequestHeader(const CaseInsensitiveMultimap& headers);
     json processStream(std::istream& stream);
 
+    void setLogger(std::shared_ptr<spdlog::logger> newLogger);
+
 private:
     FileSaverState m_state;
     std::string m_filename;
@@ -65,14 +69,16 @@ private:
     std::string m_newline;
 
     size_t m_fileSize;
-    CaseInsensitiveMultimap m_requestHeadersMap;
 
-    std::string lastError;
+    std::shared_ptr<spdlog::logger> m_logger;
+
+    std::string m_lastError;
 
     json descriptionUploadedFiles;
     void addFileToDescriptionUploadedFiles(json& newDescriptionFile);
 
     void setState(FileSaverState newState);
+    void setLastError(std::string newLastError);
 
     //Таблица переходов состояний
     FileSaverState m_transitionTable[QuantityParserState][QuantityTypeLine] =
@@ -114,6 +120,7 @@ private:
     bool readLineFromBuffer(std::istream& stream, std::string& line);
 
     bool writeLineToFile(std::string& line);
+    void closeFileAndResetValues();
 
     TypeLine getLineType(std::string& line);
 

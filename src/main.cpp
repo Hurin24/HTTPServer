@@ -1,7 +1,11 @@
-#include <nlohmann/json.hpp>
-
 #include "FileSaver.h"
+
 #include "server_http.hpp"
+#include <nlohmann/json.hpp>
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/rotating_file_sink.h"
+#include "spdlog/logger.h"
+
 #include <fstream>
 
 using namespace std;
@@ -72,25 +76,6 @@ bool checkRootPrivileges()
     }
 }
 
-bool createUploadsDirectory()
-{
-    int result;
-#ifdef _WIN32
-    result = system("mkdir uploads 2>nul");
-#else
-    result = system("mkdir -p uploads");
-#endif
-
-    if(result == 0)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
 int main(int argc, char* argv[])
 {
     //Проверка количества аргументов
@@ -134,19 +119,31 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    if(!createUploadsDirectory())
-    {
-        std::cerr << "Не удалось создать директорию uploads" << std::endl;
-        return 1;
-    }
 
+    //Создаём логгер
+    auto max_size = 1024 * 1024 * 1024 * 2.5; //2.5 Мб, общий размер двух файлов лога 5 МБ
+    auto max_files = 1;
+
+    auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_st>("log.txt", max_size, max_files);
+    file_sink->set_level(spdlog::level::trace);
+
+    auto logger = std::make_shared<spdlog::logger>("HTTP server logger", file_sink);
+    logger->set_level(spdlog::level::trace);
+    logger->flush_on(spdlog::level::trace);
+
+
+    //Создаём сервер
     HttpServer server;
     server.config.address = ip;
     server.config.port = std::stoi(port);
 
 
-    // GET-example for the path /info
-    // Responds with request-information
+    //Создаём сохраняльщик файлов
+    FileSaver fileSaver;
+    fileSaver.setLogger(logger);
+
+
+    //GET запрос по пути /info
     server.resource["^/info$"]["GET"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
                                         {
                                             json info =
@@ -163,31 +160,124 @@ int main(int argc, char* argv[])
                                         };
 
 
-    server.resource["^/upload$"]["POST"] = [](auto response, auto request)
+    //POST запрос по пути /upload
+    server.resource["^/upload$"]["POST"] = [&fileSaver](auto response, auto request)
                                            {
-
-                                                   FileSaver fileSaver;
-
                                                    fileSaver.setRequestHeader(request->header);
                                                    json result = fileSaver.processStream(request->content);
 
                                                    std::string response_content = result.dump();
 
                                                    *response << "HTTP/1.1 200 OK\r\n"
-                                                           << "Content-Type: application/json\r\n"
-                                                           << "Content-Length: " << response_content.length() << "\r\n"
-                                                           << "\r\n" << response_content;
+                                                             << "Content-Type: application/json\r\n"
+                                                             << "Content-Length: " << response_content.length() << "\r\n"
+                                                             << "\r\n" << response_content;
                                            };
 
-    thread server_thread(
-    [&server]()
-    {
-        std::cout << "Запущен сервер с IP = " << server.config.address << " и портом = " << server.config.port << std::endl;
 
-        //Запуск сервера
-        server.start();
-    });
+    //GET запрос по пути /log
+    server.resource["^/log$"]["GET"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+                                       {
+                                           try
+                                           {
+                                               const size_t MAX_TOTAL_SIZE = 1024 * 1024 * 1024 * 5; //5 Мб
+                                               size_t total_size = 0;
+                                               std::string content;
+                                               bool log_exists = false;
+                                               bool log1_exists = false;
 
-    server_thread.join();
+                                               //Проверяем существование и размер log.1.txt
+                                               std::ifstream file1("log.1.txt");
+                                               if(file1)
+                                               {
+                                                   log1_exists = true;
+                                                   file1.seekg(0, std::ios::end);
+                                                   std::streampos size1 = file1.tellg();
+                                                   file1.seekg(0, std::ios::beg);
+                                                   total_size += size1;
+
+                                                   if(size1 > 0)
+                                                   {
+                                                       content += std::string((std::istreambuf_iterator<char>(file1)), std::istreambuf_iterator<char>());
+                                                   }
+                                               }
+
+
+                                               //Проверяем существование и размер log.txt
+                                               std::ifstream file("log.txt");
+                                               if(file)
+                                               {
+                                                   log_exists = true;
+                                                   file.seekg(0, std::ios::end);
+                                                   std::streampos size = file.tellg();
+                                                   file.seekg(0, std::ios::beg);
+                                                   total_size += size;
+
+                                                   if(size > 0)
+                                                   {
+                                                       content += std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+                                                   }
+                                               }
+
+
+                                               //Проверяем общий размер файлов
+                                               if(total_size > MAX_TOTAL_SIZE)
+                                               {
+                                                   std::string size_warning = "Общий размер файла логов превышает 5 МБ: " + std::to_string(total_size) + " байт";
+                                                   *response << "HTTP/1.1 200 OK\r\n"
+                                                               << "Content-Type: text/plain; charset=utf-8\r\n"
+                                                               << "Content-Length: " << size_warning.length() << "\r\n"
+                                                               << "\r\n"
+                                                               << size_warning;
+                                                   return;
+                                               }
+
+                                               //Формируем ответ в зависимости от наличия файлов и их содержимого
+                                               if(!content.empty())
+                                               {
+                                                   *response << "HTTP/1.1 200 OK\r\n"
+                                                               << "Content-Type: text/plain; charset=utf-8\r\n"
+                                                               << "Content-Length: " << content.length() << "\r\n"
+                                                               << "\r\n"
+                                                               << content;
+                                               }
+                                               else if(log_exists)
+                                               {
+                                                   std::string empty_content = "Файл логов существует, но пуст";
+                                                   *response << "HTTP/1.1 200 OK\r\n"
+                                                               << "Content-Type: text/plain; charset=utf-8\r\n"
+                                                               << "Content-Length: " << empty_content.length() << "\r\n"
+                                                               << "\r\n"
+                                                               << empty_content;
+                                               }
+                                               else
+                                               {
+                                                   std::string no_files_content = "Файл логов отсутствует";
+                                                   *response << "HTTP/1.1 200 OK\r\n"
+                                                               << "Content-Type: text/plain; charset=utf-8\r\n"
+                                                               << "Content-Length: " << no_files_content.length() << "\r\n"
+                                                               << "\r\n"
+                                                               << no_files_content;
+                                               }
+                                           }
+                                           catch (const std::exception& e)
+                                           {
+                                               std::string error_content = "Ошибка: " + std::string(e.what());
+                                               *response << "HTTP/1.1 500 Internal Server Error\r\n"
+                                                           << "Content-Type: text/plain; charset=utf-8\r\n"
+                                                           << "Content-Length: " << error_content.length() << "\r\n"
+                                                           << "\r\n"
+                                                           << error_content;
+                                           }
+                                       };
+
+
+    std::string info = "Запущен сервер с IP = " + server.config.address + " и портом = " + std::to_string(server.config.port);
+    logger->info(info);
+    std::cout << info << std::endl;
+
+    //Запуск сервера
+    server.start();
+
     return 0;
 }
