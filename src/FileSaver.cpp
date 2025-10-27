@@ -113,7 +113,6 @@ json FileSaver::processStream(std::istream& stream)
         TypeLine lineType = getLineType(line);
 
         //Выполняем переход состояния
-        FileSaverState oldState = m_state;
         FileSaverState newState = m_transitionTable[m_state][lineType];
         setState(newState);
 
@@ -159,6 +158,11 @@ json FileSaver::processStream(std::istream& stream)
 void FileSaver::setLogger(std::shared_ptr<spdlog::logger> newLogger)
 {
     m_logger = newLogger;
+}
+
+void FileSaver::setDir(std::string newDir)
+{
+    m_dir = newDir;
 }
 
 void FileSaver::addFileToDescriptionUploadedFiles(json& newDescriptionFile)
@@ -227,10 +231,10 @@ bool FileSaver::wasReadContentDisposition(std::string& line)
             m_filename = "upload_" + std::to_string(std::time(nullptr)) + ".dat";
         }
 
-        m_file.open("uploads/" + m_filename, std::ios::binary);
+        m_file.open(m_dir + "/" + m_filename, std::ios::binary);
         if(!m_file.is_open())
         {
-            setLastError("Cannot open file: uploads/" + m_filename);
+            setLastError("Cannot open file: " + m_dir + "/" + m_filename);
             return false;
         }
 
@@ -312,7 +316,6 @@ bool FileSaver::wasReadBoundaryEnd(std::string& line)
     m_boundary.clear();
     m_boundaryExtended.clear();
     m_boundaryEnd.clear();
-    descriptionUploadedFiles.clear();
 
     //Переходим в конечное состояние
     setState(FinishedRead);
@@ -417,7 +420,7 @@ bool FileSaver::writeLineToFile(std::string& line)
 {
     if(!m_file.is_open())
     {
-        setLastError("File uploads/" + m_filename + " not open");
+        setLastError("File" + m_dir + "/" + m_filename + " not open");
         return false;
     }
 

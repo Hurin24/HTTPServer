@@ -12,6 +12,7 @@ using namespace std;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 using json = nlohmann::json;
 
+const std::string uploadDirectory = "/tmp";
 
 bool isValidIP(const std::string& ip)
 {
@@ -76,6 +77,24 @@ bool checkRootPrivileges()
     }
 }
 
+bool createUploadsDirectory(std::string newDirectory)
+{
+    int result;
+
+#ifdef _WIN32
+    result = system(std::string("mkdir" + newDirectory + "2>nul").c_str());
+#else
+    result = system(std::string("mkdir -p " + newDirectory).c_str());
+#endif
+
+    if(result != 0)
+    {
+        return false;
+    }
+
+    return true;
+}
+
 int main(int argc, char* argv[])
 {
     //Проверка количества аргументов
@@ -113,12 +132,19 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    //Проверка, запущено ли от root'а
     if(!checkRootPrivileges())
     {
         std::cerr << "Ошибка: программа должна быть запущена с правами root!" << std::endl;
         return 1;
     }
 
+    //Создаём директорию если нужно
+    if(!createUploadsDirectory(uploadDirectory))
+    {
+        std::cerr << "Не удалось создать директорию: " << uploadDirectory << std::endl;
+        return 1;
+    }
 
     //Создаём логгер
     auto max_size = 1024 * 1024 * 1024 * 2.5; //2.5 Мб, общий размер двух файлов лога 5 МБ
@@ -141,6 +167,7 @@ int main(int argc, char* argv[])
     //Создаём сохраняльщик файлов
     FileSaver fileSaver;
     fileSaver.setLogger(logger);
+    fileSaver.setDir(uploadDirectory);
 
 
     //GET запрос по пути /info

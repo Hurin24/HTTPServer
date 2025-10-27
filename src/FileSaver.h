@@ -59,7 +59,10 @@ public:
 
     void setLogger(std::shared_ptr<spdlog::logger> newLogger);
 
+    void setDir(std::string newDir);
+
 private:
+    std::string m_dir;
     FileSaverState m_state;
     std::string m_filename;
     std::ofstream m_file;
